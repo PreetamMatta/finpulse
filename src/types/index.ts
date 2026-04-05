@@ -1,0 +1,7 @@
+export type AccountType = "CHECKING" | "SAVINGS" | "CREDIT_CARD" | "INVESTMENT" | "LOAN" | "OTHER"
+export type CategoryType = "INCOME" | "EXPENSE"
+export type ImportSource = "MANUAL" | "CSV_IMPORT" | "RECURRING_AUTO"
+export type BudgetPeriod = "MONTHLY" | "BIWEEKLY"
+export type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY"
+export type GoalType = "SAVINGS" | "DEBT_PAYOFF" | "PURCHASE" | "EMERGENCY_FUND" | "CUSTOM"
+export type DeductionType = "TAX" | "RETIREMENT" | "INSURANCE" | "OTHER"

@@ -1,0 +1,220 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  currency     String   @default("USD")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts              Account[]
+  transactions          Transaction[]
+  budgets               Budget[]
+  goals                 Goal[]
+  payStubs              PayStub[]
+  subscriptions         Subscription[]
+  categories            Category[]
+  recurringTransactions RecurringTransaction[]
+  categorizationRules   CategorizationRule[]
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  userId      String
+  name        String
+  type        String      // CHECKING, SAVINGS, CREDIT_CARD, INVESTMENT, LOAN, OTHER
+  institution String?
+  balance     Int         @default(0) // stored in cents
+  interestRate Float?
+  creditLimit  Int?       // stored in cents
+  color       String      @default("#6366f1")
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  goals         Goal[]        @relation("LinkedAccount")
+  recurringTransactions RecurringTransaction[]
+
+  @@index([userId])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  accountId     String
+  date          DateTime
+  amount        Int      // stored in cents, positive = income, negative = expense
+  description   String
+  categoryId    String?
+  subcategory   String?
+  merchant      String?
+  isRecurring   Boolean  @default(false)
+  notes         String?
+  importSource  String   @default("MANUAL") // MANUAL, CSV_IMPORT, RECURRING_AUTO
+  importBatchId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([date])
+  @@index([importBatchId])
+}
+
+model Category {
+  id       String  @id @default(cuid())
+  userId   String? // null = system default
+  name     String
+  icon     String?
+  type     String  // INCOME, EXPENSE
+  parentId String?
+  color    String  @default("#6366f1")
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Category?     @relation("SubCategories", fields: [parentId], references: [id])
+  children     Category[]    @relation("SubCategories")
+  transactions Transaction[]
+  budgets      Budget[]
+  recurringTransactions RecurringTransaction[]
+
+  @@index([userId])
+  @@index([parentId])
+}
+
+model PayStub {
+  id             String   @id @default(cuid())
+  userId         String
+  payDate        DateTime
+  grossPay       Int      // cents
+  netPay         Int      // cents
+  payPeriodStart DateTime
+  payPeriodEnd   DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deductions PayStubDeduction[]
+
+  @@index([userId])
+}
+
+model PayStubDeduction {
+  id        String @id @default(cuid())
+  payStubId String
+  name      String
+  amount    Int    // cents
+  type      String // TAX, RETIREMENT, INSURANCE, OTHER
+  isPreTax  Boolean @default(true)
+
+  payStub PayStub @relation(fields: [payStubId], references: [id], onDelete: Cascade)
+
+  @@index([payStubId])
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String
+  accountId       String?
+  name            String
+  amount          Int      // cents
+  frequency       String   // WEEKLY, MONTHLY, YEARLY
+  category        String?
+  nextBillingDate DateTime
+  isActive        Boolean  @default(true)
+  url             String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model Budget {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  amount     Int      // cents
+  period     String   @default("MONTHLY") // MONTHLY, BIWEEKLY
+  startDate  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([categoryId])
+}
+
+model Goal {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  targetAmount    Int      // cents
+  currentAmount   Int      @default(0) // cents
+  deadline        DateTime?
+  type            String   // SAVINGS, DEBT_PAYOFF, PURCHASE, EMERGENCY_FUND, CUSTOM
+  linkedAccountId String?
+  notes           String?
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedAccount Account? @relation("LinkedAccount", fields: [linkedAccountId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model RecurringTransaction {
+  id             String   @id @default(cuid())
+  userId         String
+  accountId      String
+  description    String
+  amount         Int      // cents
+  categoryId     String?
+  frequency      String   // WEEKLY, BIWEEKLY, MONTHLY, YEARLY
+  nextOccurrence DateTime
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model CategorizationRule {
+  id         String @id @default(cuid())
+  userId     String
+  pattern    String // substring or regex
+  categoryId String
+  isRegex    Boolean @default(false)
+  priority   Int     @default(0)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
