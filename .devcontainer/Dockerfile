@@ -4,10 +4,11 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     sqlite3 \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g npm@latest
 
 WORKDIR /workspace
 
-EXPOSE 3000
+EXPOSE 3000 5555

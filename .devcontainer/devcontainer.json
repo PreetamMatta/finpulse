@@ -1,15 +1,9 @@
 {
   "name": "FinPulse Dev",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": ".."
-  },
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
   "workspaceFolder": "/workspace",
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
-  "mounts": [
-    "source=finpulse-db,target=/data,type=volume"
-  ],
-  "forwardPorts": [3000],
+  "forwardPorts": [3000, 5555],
   "customizations": {
     "vscode": {
       "settings": {
@@ -31,6 +25,9 @@
   },
   "postCreateCommand": "npm install && npx prisma generate && npx prisma db push",
   "remoteEnv": {
-    "DATABASE_URL": "file:/data/finpulse.db"
-  }
+    "DATABASE_URL": "file:/data/finpulse.db",
+    "AUTH_SECRET": "finpulse-dev-secret-change-in-production",
+    "AUTH_URL": "http://localhost:3000"
+  },
+  "overrideCommand": true
 }

@@ -1,36 +1,136 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FinPulse
 
-## Getting Started
+**Personal Finance Dashboard -- Take control of your money**
 
-First, run the development server:
+FinPulse is a self-hosted personal finance dashboard, built as an alternative to Mint and YNAB. It is built with Next.js and uses SQLite for zero-configuration storage. Track your income, expenses, budgets, financial goals, and investments all in one place.
+
+---
+
+## Features
+
+### Built
+
+- [x] Authentication (email/password login, multi-user support)
+- [x] Dashboard with financial overview, charts, and key metrics
+- [x] Account management (checking, savings, credit cards, investments, loans)
+- [x] Transaction tracking with search, filters, and pagination
+- [x] Category system (hierarchical, fully customizable)
+
+### Planned
+
+- [ ] CSV Import (Bank of America, Amex, SoFi parsers)
+- [ ] Auto-categorization engine (keyword and regex matching rules)
+- [ ] Pay stub tracking with deduction analysis
+- [ ] Budget management with progress tracking
+- [ ] Financial goals with projections
+- [ ] Subscription tracker
+- [ ] Insights and reports (spending trends, net worth, cash flow forecast)
+- [ ] "Can I Afford This?" calculator
+
+---
+
+## Quick Start
+
+Prerequisites: Docker Desktop, Make, Git
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repo-url>
+cd finpulse
+make start        # Builds container, sets up DB, starts app
+# Open http://localhost:3000
+# Demo: demo@finpulse.app / password123 (after make db-seed)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Make Commands
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command           | Description                                          |
+|-------------------|------------------------------------------------------|
+| `make start`      | Build container, set up database, start the app      |
+| `make stop`       | Stop running containers                              |
+| `make restart`    | Stop and restart containers                          |
+| `make logs`       | Tail container logs                                  |
+| `make shell`      | Open a shell inside the running container            |
+| `make install`    | Install npm dependencies inside the container        |
+| `make dev`        | Start Next.js in development mode                    |
+| `make build`      | Run a production build                               |
+| `make lint`       | Run ESLint                                           |
+| `make db-push`    | Push Prisma schema changes to the database           |
+| `make db-seed`    | Seed the database with demo data                     |
+| `make db-studio`  | Open Prisma Studio on port 5555                      |
+| `make db-reset`   | Drop and recreate the database, then re-seed         |
+| `make db-migrate` | Run Prisma migrations                                |
+| `make clean`      | Remove build artifacts and node_modules volume       |
+| `make nuke`       | Full teardown: containers, volumes, images, database |
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Tech Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Technology      | Role                              |
+|-----------------|-----------------------------------|
+| Next.js 16      | App Router, server/client components |
+| TypeScript      | Strict mode across the codebase   |
+| Tailwind CSS v4 | Styling with zinc palette, dark mode |
+| Prisma + SQLite | ORM and zero-config database      |
+| Auth.js v5      | Authentication (Credentials provider) |
+| Recharts        | Charts and data visualization     |
+| Zod             | Runtime schema validation         |
+| date-fns        | Date formatting and manipulation  |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+  app/
+    (auth)/          # Login and register pages
+    (app)/           # Protected app pages (dashboard, accounts, transactions, etc.)
+    api/             # API routes for mutations
+  components/
+    layout/          # App shell, sidebar, mobile nav
+    ui/              # Reusable UI primitives (Button, Card, Table, Dialog, etc.)
+  lib/               # auth.ts, prisma.ts, utils.ts
+  types/             # Shared TypeScript types
+prisma/
+  schema.prisma      # Database schema
+  seed.ts            # Demo data seeder
+docs/                # Architecture and feature tracking
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Development
+
+- The app runs inside a Docker container (Node 20, Debian Bookworm) with SQLite.
+- VS Code DevContainers are supported for a seamless development experience.
+- Dark mode is enabled by default.
+- All monetary values are stored as integers (cents). `$45.50` is stored as `4550`.
+
+To get a shell inside the container:
+
+```bash
+make shell
+```
+
+From there you can run type checks, Prisma commands, or anything else:
+
+```bash
+npx tsc --noEmit
+npx prisma studio
+```
+
+---
+
+## Contributing
+
+- AI agents: read `AGENTS.md` for complete coding guidelines and architecture details.
+- Humans: see `docs/` for architecture documentation and the feature tracker.
+
+---
+
+## License
+
+MIT
