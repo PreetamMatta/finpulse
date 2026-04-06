@@ -41,8 +41,7 @@ make logs               # Watch logs in terminal
 # 2. Push changes:
 make db-push
 
-# Check types
-make shell
+# Check types (run directly inside devcontainer, or via make shell from host)
 npx tsc --noEmit
 
 # Reset everything
@@ -55,10 +54,10 @@ make db-reset           # Wipe DB + re-seed
 | Command | Description |
 |---------|-------------|
 | `make start` | Build and start the app container |
-| `make stop` | Stop all containers |
-| `make restart` | Restart containers |
-| `make logs` | Tail container logs (Ctrl+C to stop) |
-| `make shell` | Open bash shell inside container |
+| `make stop` | Stop all containers (no-op inside devcontainer — use VS Code) |
+| `make restart` | Restart containers (use `make dev` inside devcontainer) |
+| `make logs` | Tail container logs (no-op inside devcontainer — server output is in the terminal) |
+| `make shell` | Open bash shell inside container (no-op if already in devcontainer) |
 
 ### Development
 | Command | Description |
@@ -89,7 +88,10 @@ If you use VS Code:
 1. Install the "Dev Containers" extension
 2. Open the project folder
 3. Click "Reopen in Container" when prompted
-4. VS Code will build the Docker image and connect
+4. VS Code builds the image and runs `npm install && prisma generate && prisma db push` automatically
+5. Open a terminal inside VS Code and run `make start` to start the dev server
+
+The devcontainer does **not** auto-start the dev server — this gives you the same `make start` / `make stop` workflow as local development. `make` commands detect they're inside a container and run directly (no `docker compose exec` wrapper needed).
 
 Extensions auto-installed: ESLint, Prettier, Prisma, Tailwind IntelliSense, GitLens.
 
@@ -126,8 +128,7 @@ src/app/(app)/<feature>/
 
 ### 5. Type Check
 ```bash
-make shell
-npx tsc --noEmit
+npx tsc --noEmit   # inside devcontainer terminal, or: make shell → npx tsc --noEmit
 ```
 
 ## Troubleshooting

@@ -1,6 +1,9 @@
 {
   "name": "FinPulse Dev",
-  "dockerComposeFile": "docker-compose.yml",
+  "dockerComposeFile": [
+    "docker-compose.yml",
+    "docker-compose.devcontainer.yml"
+  ],
   "service": "app",
   "workspaceFolder": "/workspace",
   "forwardPorts": [3000, 5555],
@@ -28,6 +31,5 @@
     "DATABASE_URL": "file:/data/finpulse.db",
     "AUTH_SECRET": "finpulse-dev-secret-change-in-production",
     "AUTH_URL": "http://localhost:3000"
-  },
-  "overrideCommand": true
+  }
 }

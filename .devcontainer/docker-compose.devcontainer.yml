@@ -1,0 +1,6 @@
+# Devcontainer overlay: removes host port bindings so they don't conflict with
+# the already-running devcontainer process. Port forwarding is handled by
+# devcontainer.json "forwardPorts" instead.
+services:
+  app:
+    ports: []

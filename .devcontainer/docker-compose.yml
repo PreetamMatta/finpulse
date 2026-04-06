@@ -17,15 +17,34 @@ services:
       - AUTH_URL=http://localhost:3000
       - NODE_ENV=development
     working_dir: /workspace
-    command: >
-      bash -c "
-        npm install &&
-        npx prisma generate &&
-        npx prisma db push &&
-        npm run dev -- -H 0.0.0.0
-      "
+    # Keep container alive: setup runs via devcontainer.json postCreateCommand,
+    # then run `make start` inside the terminal to start dev server.
+    command: tail -f /dev/null
     stdin_open: true
     tty: true
+
+  # Optional: separate app-server container (for Docker-based workflow)
+  # Only used if explicitly running: docker compose -f .devcontainer/docker-compose.yml up app-server
+  app-server:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: finpulse-app-server
+    volumes:
+      - ..:/workspace:cached
+      - finpulse-db:/data
+      - node_modules:/workspace/node_modules
+    ports:
+      - "3001:3000"
+    environment:
+      - DATABASE_URL=file:/data/finpulse.db
+      - AUTH_SECRET=finpulse-dev-secret-change-in-production
+      - AUTH_URL=http://localhost:3001
+      - NODE_ENV=development
+    working_dir: /workspace
+    command: bash -c "npm install && npx prisma generate && npx prisma db push && npm run dev -- -H 0.0.0.0"
+    profiles:
+      - server
 
 volumes:
   finpulse-db:
