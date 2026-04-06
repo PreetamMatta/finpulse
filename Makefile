@@ -1,5 +1,5 @@
-COMPOSE := docker compose -f .devcontainer/docker-compose.yml
-APP     := finpulse-dev
+COMPOSE := docker compose
+APP     := finpulse
 
 # Detect if we're already running inside a Docker container (e.g. devcontainer).
 # If so, commands run directly; otherwise they go through "docker compose exec app".
@@ -32,11 +32,10 @@ ifeq ($(IN_CONTAINER),1)
 else
 	$(COMPOSE) up --build -d
 	@echo ""
-	@echo "  FinPulse is starting up..."
+	@echo "  FinPulse is starting up (npm install + db setup + dev server)..."
 	@echo "  App:            http://localhost:3000"
 	@echo "  Prisma Studio:  make db-studio (port 5555)"
 	@echo "  Logs:           make logs"
-	@echo "  Shell:          make shell"
 	@echo ""
 endif
 

@@ -33,8 +33,8 @@
 
 | Technology | Role | Notes |
 |-----------|------|-------|
-| Docker | Container runtime | Node 20 Debian Bookworm base |
-| Docker Compose | Container orchestration | Defined in `.devcontainer/docker-compose.yml` |
+| Docker | Container runtime | Node 20 Debian Bookworm base; image defined in `Dockerfile` at project root |
+| Docker Compose | Container orchestration | `docker-compose.yml` (root) for regular use; `.devcontainer/docker-compose.yml` for VS Code DevContainer |
 | GNU Make | Task runner | `Makefile` in project root |
 | VS Code DevContainers | IDE integration | `.devcontainer/devcontainer.json` |
 

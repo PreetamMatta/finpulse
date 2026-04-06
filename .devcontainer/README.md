@@ -1,105 +1,76 @@
-# FinPulse Dev Container Setup
+# FinPulse DevContainer
 
-This devcontainer provides a development environment for FinPulse with two workflow options:
+This directory configures a VS Code DevContainer for FinPulse. It is intended for
+**VS Code users only**. Regular terminal users should use `make start` from the project root,
+which picks up `docker-compose.yml` at the root.
 
-## Option 1: Terminal-Based Development (Recommended)
+---
 
-**Best for**: Interactive development, debugging, and running commands directly.
+## How it works
 
-### Setup
+When VS Code opens this project and you click **Reopen in Container**, it:
 
-1. Open the project in VS Code with devcontainers
-2. VS Code will automatically build and start the `app` service
-3. Inside the terminal, run:
+1. Builds the image from `.devcontainer/Dockerfile` (Node 20 Debian)
+2. Starts the `app` service from `.devcontainer/docker-compose.yml` (container stays alive with `sleep infinity`)
+3. Applies the overlay from `.devcontainer/docker-compose.devcontainer.yml` (removes host port bindings — VS Code handles port forwarding instead)
+4. Runs `postCreateCommand`: `npm install && npx prisma generate && npx prisma db push`
+
+After that, open the integrated terminal and start the dev server yourself:
 
 ```bash
-make start
+make dev        # or: make start (same thing inside a container)
+make db-seed    # seed demo data (first time only)
 ```
 
-This starts the Next.js dev server on `http://localhost:3000` and gives you full control over the process.
-
-### Benefits
-
-- Same experience as local development (`make start`)
-- You can stop/restart the dev server easily (Ctrl+C)
-- Full terminal access for debugging and running commands
-- Port 3000 is only bound when you're actively running the server
+Open `http://localhost:3000` — VS Code forwards the port automatically.
 
 ---
 
-## Option 2: Docker Compose-Based Development
+## File reference
 
-**Best for**: Full containerization, testing deployment scenarios, or running multiple services.
-
-### Setup
-
-From your **local machine** (not inside the devcontainer terminal):
-
-```bash
-# Start devcontainer + app server in separate containers
-docker compose -f .devcontainer/docker-compose.yml up -d app app-server
-
-# View logs
-docker compose -f .devcontainer/docker-compose.yml logs -f app-server
-
-# Stop
-docker compose -f .devcontainer/docker-compose.yml down
-```
-
-The app-server will run on `http://localhost:3001` (separate port to avoid conflicts).
-
-### Benefits
-
-- True containerized workflow
-- App server runs independently
-- Easy to restart just the server without recreating the devcontainer
+| File                               | Purpose                                                       |
+|------------------------------------|---------------------------------------------------------------|
+| `../Dockerfile`                    | Base image (project root): Node 20 Debian Bookworm            |
+| `docker-compose.yml`               | DevContainer service definition (keep-alive container)        |
+| `docker-compose.devcontainer.yml`  | Overlay that clears host port bindings for VS Code forwarding |
+| `devcontainer.json`                | VS Code config: extensions, settings, postCreateCommand       |
 
 ---
 
-## File Structure
+## Environment variables
 
-- **`docker-compose.yml`**: Defines `app` (devcontainer) and `app-server` (optional) services
-- **`docker-compose.devcontainer.yml`**: Overlay that removes port bindings for devcontainer (handled by VS Code forwarding)
-- **`Dockerfile`**: Base image (Node 20 + dev tools)
-- **`devcontainer.json`**: VS Code devcontainer configuration
-
----
-
-## Environment Variables
-
-Both services use:
-
-- `DATABASE_URL`: `file:/data/finpulse.db` (SQLite on Docker volume)
-- `AUTH_SECRET`: `finpulse-dev-secret-change-in-production`
-- `AUTH_URL`: `http://localhost:3000` (for `app`) or `http://localhost:3001` (for `app-server`)
-- `NODE_ENV`: `development`
+| Variable       | Value                                     |
+|----------------|-------------------------------------------|
+| `DATABASE_URL` | `file:/data/finpulse.db` (Docker volume)  |
+| `AUTH_SECRET`  | `finpulse-dev-secret-change-in-production`|
+| `AUTH_URL`     | `http://localhost:3000`                   |
+| `NODE_ENV`     | `development`                             |
 
 ---
 
 ## Troubleshooting
 
-### "Port 3000 already in use"
+### Port 3000 already in use
 
-If you see this error:
-
-1. Make sure you don't have multiple instances of the dev server running
-2. Check: `docker ps` to see running containers
-3. Kill stale containers: `docker container rm finpulse-dev finpulse-app-server 2>/dev/null`
-
-### "Can't connect to database"
-
-Both services share the `finpulse-db` volume, so data persists. If the DB is corrupted:
+Another container may be running. Check with `docker ps` and stop it:
 
 ```bash
-docker volume rm finpulse-db
+docker stop finpulse
 ```
 
-Then restart — Prisma will re-initialize.
+### Database issues
 
-### "npm modules not syncing"
-
-The `node_modules` volume is cached for performance. If you update `package.json`:
+The DB lives on the `finpulse-db` Docker volume and persists across container rebuilds.
+To wipe it:
 
 ```bash
-make install  # or npm install inside terminal
+make db-reset   # inside the devcontainer terminal
+```
+
+### npm modules out of sync
+
+The `node_modules` volume is cached for performance. After changing `package.json`:
+
+```bash
+make install    # inside the devcontainer terminal
 ```

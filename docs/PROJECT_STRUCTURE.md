@@ -2,14 +2,14 @@
 
 ## Root Directory
 
-```
+```text
 finpulse/
 ├── .claude/                    # Claude Code config
 │   └── launch.json             # Dev server launch configs
-├── .devcontainer/              # Docker development environment
-│   ├── Dockerfile              # Node 20 Debian image
+├── .devcontainer/              # VS Code DevContainer configuration
 │   ├── devcontainer.json       # VS Code DevContainer config
-│   └── docker-compose.yml      # Container orchestration
+│   ├── docker-compose.yml      # DevContainer service (keep-alive, VS Code attaches)
+│   └── docker-compose.devcontainer.yml  # Overlay: removes host ports (VS Code forwards them)
 ├── docs/                       # Project documentation
 │   ├── adr/                    # Architecture Decision Records
 │   ├── ARCHITECTURE.md
@@ -30,7 +30,9 @@ finpulse/
 │   └── middleware.ts           # Auth middleware
 ├── AGENTS.md                   # AI agent instructions
 ├── CLAUDE.md                   # Points to AGENTS.md
-├── Makefile                    # Docker/dev task runner
+├── Dockerfile                  # App image: Node 20 Debian Bookworm (used by both workflows)
+├── docker-compose.yml          # App container for regular terminal use (make start)
+├── Makefile                    # Task runner (works both on host and inside container)
 ├── package.json
 └── tsconfig.json
 ```
@@ -39,7 +41,7 @@ finpulse/
 
 ### `src/app/` — Next.js App Router
 
-```
+```text
 src/app/
 ├── layout.tsx                  # Root layout: fonts, providers, dark mode
 ├── page.tsx                    # Root redirect → /dashboard or /login
@@ -80,7 +82,7 @@ src/app/
 
 ### `src/components/` — React Components
 
-```
+```text
 src/components/
 ├── providers.tsx               # SessionProvider wrapper
 ├── layout/
@@ -106,15 +108,16 @@ src/components/
 
 ### `src/lib/` — Shared Utilities
 
-```
+```text
 src/lib/
 ├── auth.ts                     # Auth.js config (providers, callbacks)
 ├── prisma.ts                   # Prisma client singleton
 └── utils.ts                    # Helpers: cn, formatCurrency, formatDate, etc.
 ```
 
-### Planned directories (not yet created):
-```
+### Planned directories (not yet created)
+
+```text
 src/lib/
 ├── csv-parsers/                # Bank-specific CSV parsers
 │   ├── bofa.ts
@@ -134,16 +137,16 @@ src/hooks/                      # Custom React hooks
 
 ## Naming Conventions
 
-| Item | Convention | Example |
-|------|-----------|---------|
-| Files | kebab-case | `app-shell.tsx`, `mobile-nav.tsx` |
-| Components | PascalCase | `AppShell`, `MobileNav` |
-| API routes | kebab-case directories | `api/transactions/route.ts` |
-| Prisma models | PascalCase | `Transaction`, `PayStub` |
-| DB fields | camelCase | `userId`, `payDate`, `isActive` |
-| CSS classes | Tailwind utilities | `bg-zinc-900 text-zinc-50` |
-| Types | PascalCase | `AccountType`, `GoalType` |
-| Utilities | camelCase | `formatCurrency()`, `cn()` |
+| Item          | Convention             | Example                             |
+|---------------|------------------------|-------------------------------------|
+| Files         | kebab-case             | `app-shell.tsx`, `mobile-nav.tsx`   |
+| Components    | PascalCase             | `AppShell`, `MobileNav`             |
+| API routes    | kebab-case directories | `api/transactions/route.ts`         |
+| Prisma models | PascalCase             | `Transaction`, `PayStub`            |
+| DB fields     | camelCase              | `userId`, `payDate`, `isActive`     |
+| CSS classes   | Tailwind utilities     | `bg-zinc-900 text-zinc-50`          |
+| Types         | PascalCase             | `AccountType`, `GoalType`           |
+| Utilities     | camelCase              | `formatCurrency()`, `cn()`          |
 
 ## Feature Implementation Pattern
 

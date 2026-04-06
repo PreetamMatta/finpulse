@@ -1,11 +1,11 @@
 services:
   app:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
-    container_name: finpulse-devcontainer
+    container_name: finpulse
     volumes:
-      - ..:/workspace:cached
+      - .:/workspace:cached
       - finpulse-db:/data
       - node_modules:/workspace/node_modules
     ports:
@@ -17,11 +17,11 @@ services:
       - AUTH_URL=http://localhost:3000
       - NODE_ENV=development
     working_dir: /workspace
-    # Keep container alive so VS Code can attach. Run `make dev` inside the
-    # integrated terminal to start the Next.js dev server.
-    command: sleep infinity
-    stdin_open: true
-    tty: true
+    command: >
+      bash -c "npm install &&
+               npx prisma generate &&
+               npx prisma db push &&
+               npm run dev -- -H 0.0.0.0"
 
 volumes:
   finpulse-db:

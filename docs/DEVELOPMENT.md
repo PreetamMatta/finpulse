@@ -2,105 +2,159 @@
 
 ## Prerequisites
 
-- Docker Desktop (Windows/Mac/Linux)
+- Docker Desktop (Windows / Mac / Linux)
 - GNU Make (`winget install GnuWin32.Make` on Windows)
 - Git
 
 Node.js is NOT needed locally — everything runs inside Docker.
 
-## Getting Started
+---
+
+## Workflow 1: Regular Terminal (Docker)
+
+This is the recommended workflow for users who are not using VS Code DevContainers.
+`make start` runs the app container in detached mode — `make logs` streams the output.
 
 ```bash
 # Clone and start
 git clone <repo-url>
 cd finpulse
-make start
+make start          # Build image, set up DB, start dev server in background
+make logs           # Stream logs (Ctrl+C to stop tailing, app keeps running)
 
-# Wait for "Ready" in logs
-make logs
-
-# Seed demo data
+# Seed demo data (first time only)
 make db-seed
 
-# Open app
-# http://localhost:3000
+# Open http://localhost:3000
 # Login: demo@finpulse.app / password123
 ```
 
-## Daily Workflow
+### Daily Workflow
 
 ```bash
-# Start your day
-make start              # Start containers (idempotent)
-make logs               # Watch logs in terminal
+make start          # Start containers (idempotent — safe to run again)
+make logs           # Watch logs in terminal
 
-# Make code changes — hot reload is automatic
+# Code changes trigger hot reload automatically.
 
-# Database changes
+# Schema changes:
 # 1. Edit prisma/schema.prisma
-# 2. Push changes:
-make db-push
+make db-push        # Push schema to DB
 
-# Check types (run directly inside devcontainer, or via make shell from host)
+# Run type checks inside the container:
+make shell
 npx tsc --noEmit
 
-# Reset everything
-make db-reset           # Wipe DB + re-seed
+# Full DB reset:
+make db-reset       # Wipe + push schema + seed
 ```
+
+### Stopping
+
+```bash
+make stop           # Stop containers (data is preserved on Docker volume)
+make clean          # Stop + remove volumes (deletes DB data)
+make nuke           # Full teardown: containers, volumes, images
+```
+
+---
+
+## Workflow 2: VS Code DevContainer
+
+This workflow opens the project inside a container managed by VS Code.
+The container stays alive so VS Code can attach to it — you start the dev server manually from the integrated terminal.
+
+### Setup
+
+1. Install the **Dev Containers** extension in VS Code
+2. Open the project folder
+3. Click **Reopen in Container** when prompted
+4. VS Code builds the image and automatically runs:
+
+   ```bash
+   npm install && npx prisma generate && npx prisma db push
+   ```
+
+5. In the integrated terminal, start the dev server:
+
+   ```bash
+   make dev        # Starts npm run dev directly (no Docker wrapper)
+   ```
+
+6. Seed demo data if needed:
+
+   ```bash
+   make db-seed
+   ```
+
+7. VS Code forwards port 3000 automatically — open `http://localhost:3000`
+
+### Daily Workflow (inside devcontainer)
+
+```bash
+make dev            # Start dev server (Ctrl+C to stop, re-run to restart)
+make db-push        # After schema changes
+npx tsc --noEmit    # Type check directly in terminal
+make db-reset       # Wipe + reseed
+```
+
+> `make start` inside the devcontainer is equivalent to `make dev` — it detects `IN_CONTAINER=1`
+> and runs `npm run dev` directly. Either command works.
+
+### Extensions auto-installed
+
+ESLint, Prettier, Prisma, Tailwind IntelliSense, GitLens.
+
+---
 
 ## Make Commands Reference
 
 ### Core
-| Command | Description |
-|---------|-------------|
-| `make start` | Build and start the app container |
-| `make stop` | Stop all containers (no-op inside devcontainer — use VS Code) |
-| `make restart` | Restart containers (use `make dev` inside devcontainer) |
-| `make logs` | Tail container logs (no-op inside devcontainer — server output is in the terminal) |
-| `make shell` | Open bash shell inside container (no-op if already in devcontainer) |
+
+| Command        | Regular terminal                    | Inside devcontainer                   |
+|----------------|-------------------------------------|---------------------------------------|
+| `make start`   | Build + start container (detached)  | Start dev server directly             |
+| `make dev`     | Start dev server via `exec`         | Start dev server directly             |
+| `make stop`    | Stop containers                     | No-op (VS Code manages the container) |
+| `make restart` | Restart containers                  | No-op — use `Ctrl+C` + `make dev`     |
+| `make logs`    | Tail container logs                 | No-op — output is in your terminal    |
+| `make shell`   | Open bash inside container          | No-op — you are in the container      |
 
 ### Development
-| Command | Description |
-|---------|-------------|
-| `make install` | Run npm install inside container |
-| `make dev` | Start Next.js dev server manually |
-| `make build` | Production build |
-| `make lint` | Run ESLint |
+
+| Command        | Description                   |
+|----------------|-------------------------------|
+| `make install` | Run `npm install`             |
+| `make build`   | Production build              |
+| `make lint`    | Run ESLint                    |
 
 ### Database
-| Command | Description |
-|---------|-------------|
-| `make db-push` | Push schema changes to DB |
-| `make db-seed` | Seed demo data |
-| `make db-studio` | Open Prisma Studio (port 5555) |
-| `make db-reset` | Wipe DB + push schema + seed |
-| `make db-migrate` | Generate Prisma migration |
+
+| Command           | Description                        |
+|-------------------|------------------------------------|
+| `make db-push`    | Push schema changes to DB          |
+| `make db-seed`    | Seed demo data                     |
+| `make db-studio`  | Open Prisma Studio (port 5555)     |
+| `make db-reset`   | Wipe DB + push schema + seed       |
+| `make db-migrate` | Generate Prisma migration          |
 
 ### Cleanup
-| Command | Description |
-|---------|-------------|
-| `make clean` | Stop containers + remove volumes |
-| `make nuke` | Full teardown (containers + images) |
 
-## VS Code DevContainer
+| Command       | Description                                   |
+|---------------|-----------------------------------------------|
+| `make clean`  | Stop containers + remove volumes (deletes DB) |
+| `make nuke`   | Full teardown: containers, volumes, images    |
 
-If you use VS Code:
-1. Install the "Dev Containers" extension
-2. Open the project folder
-3. Click "Reopen in Container" when prompted
-4. VS Code builds the image and runs `npm install && prisma generate && prisma db push` automatically
-5. Open a terminal inside VS Code and run `make start` to start the dev server
-
-The devcontainer does **not** auto-start the dev server — this gives you the same `make start` / `make stop` workflow as local development. `make` commands detect they're inside a container and run directly (no `docker compose exec` wrapper needed).
-
-Extensions auto-installed: ESLint, Prettier, Prisma, Tailwind IntelliSense, GitLens.
+---
 
 ## Adding a New Feature
 
 ### 1. Plan
+
 Read `docs/FEATURE_TRACKER.md` for the feature spec and status.
 
 ### 2. Schema (if needed)
+
 ```prisma
 // prisma/schema.prisma
 model NewFeature {
@@ -111,48 +165,60 @@ model NewFeature {
   @@index([userId])
 }
 ```
+
 Then: `make db-push`
 
 ### 3. API Route
-```
+
+```text
 src/app/api/<feature>/route.ts
 ```
+
 Follow existing patterns: auth check → Zod validate → Prisma query → JSON response.
 
 ### 4. Page
-```
+
+```text
 src/app/(app)/<feature>/
 ├── page.tsx              # Server component (data fetching)
 └── <feature>-client.tsx  # Client component (UI)
 ```
 
 ### 5. Type Check
+
 ```bash
-npx tsc --noEmit   # inside devcontainer terminal, or: make shell → npx tsc --noEmit
+npx tsc --noEmit   # Inside devcontainer terminal, or: make shell → npx tsc --noEmit
 ```
+
+---
 
 ## Troubleshooting
 
 ### Container won't start
+
 ```bash
 make nuke    # Full reset
 make start   # Rebuild from scratch
 ```
 
 ### Database issues
+
 ```bash
 make db-reset   # Wipe and reseed
 ```
 
 ### Port 3000 already in use
+
 ```bash
 # Find what's using it
-netstat -ano | findstr :3000
-# Or change port in docker-compose.yml
+lsof -i :3000
+# Or: docker ps  — another finpulse container may be running
+make stop
 ```
 
 ### Node modules issues
+
 ```bash
 make clean    # Removes node_modules volume
-make start    # Fresh install
+make start    # Fresh install on next startup
 ```

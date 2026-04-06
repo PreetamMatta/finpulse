@@ -5,8 +5,9 @@
 ## Quick Reference
 
 - **Stack**: Next.js 16 (App Router), TypeScript strict, Tailwind CSS v4, Prisma + SQLite, Auth.js v5
-- **Run locally**: `make start` (Docker required)
-- **Type check**: `npx tsc --noEmit` (run inside container: `make shell` first)
+- **Run locally**: `make start` from repo root (starts app via `docker-compose.yml`)
+- **Inside devcontainer**: `make dev` (runs `npm run dev` directly, no Docker wrapper)
+- **Type check**: `npx tsc --noEmit` (inside devcontainer, or `make shell` then run it)
 - **Lint**: `make lint`
 - **DB reset**: `make db-reset`
 - **Architecture docs**: `docs/ARCHITECTURE.md`
