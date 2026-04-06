@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { fetchBackend } from "@/lib/api";
 import { redirect } from "next/navigation";
 import { TransactionsClient } from "./transactions-client";
 
@@ -15,35 +15,20 @@ export default async function TransactionsPage({
   const page = Math.max(1, parseInt(params.page || "1", 10));
   const perPage = 20;
 
-  const [transactions, totalCount, accounts, categories] = await Promise.all([
-    prisma.transaction.findMany({
-      where: { userId: session.user.id },
-      include: { account: true, category: true },
-      orderBy: { date: "desc" },
-      skip: (page - 1) * perPage,
-      take: perPage,
-    }),
-    prisma.transaction.count({
-      where: { userId: session.user.id },
-    }),
-    prisma.account.findMany({
-      where: { userId: session.user.id },
-      orderBy: { name: "asc" },
-    }),
-    prisma.category.findMany({
-      where: { userId: session.user.id },
-      orderBy: { name: "asc" },
-    }),
+  const [txRes, accounts, categories] = await Promise.all([
+    fetchBackend(`/api/transactions?page=${page}&limit=${perPage}`),
+    fetchBackend("/api/accounts"),
+    fetchBackend("/api/categories")
   ]);
 
   return (
     <TransactionsClient
-      transactions={JSON.parse(JSON.stringify(transactions))}
-      accounts={JSON.parse(JSON.stringify(accounts))}
-      categories={JSON.parse(JSON.stringify(categories))}
+      transactions={txRes.transactions}
+      accounts={accounts}
+      categories={categories}
       currentPage={page}
-      totalPages={Math.ceil(totalCount / perPage)}
-      totalCount={totalCount}
+      totalPages={txRes.totalPages}
+      totalCount={txRes.total}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { fetchBackend } from "@/lib/api"
 import { startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { DashboardClient } from "./dashboard-client"
 
@@ -13,27 +13,45 @@ export default async function DashboardPage() {
   const lastMonthStart = startOfMonth(subMonths(now, 1))
   const lastMonthEnd = endOfMonth(subMonths(now, 1))
 
-  // Fetch in parallel
-  const [accounts, thisMonthTx, lastMonthTx, recentTx, goals, budgetsWithCategory] = await Promise.all([
-    prisma.account.findMany({ where: { userId: session.user.id, isActive: true }, orderBy: { createdAt: "asc" } }),
-    prisma.transaction.findMany({ where: { userId: session.user.id, date: { gte: monthStart, lte: monthEnd } } }),
-    prisma.transaction.findMany({ where: { userId: session.user.id, date: { gte: lastMonthStart, lte: lastMonthEnd } } }),
-    prisma.transaction.findMany({ where: { userId: session.user.id }, orderBy: { date: "desc" }, take: 10, include: { account: true, category: true } }),
-    prisma.goal.findMany({ where: { userId: session.user.id, isCompleted: false } }),
-    prisma.budget.findMany({ where: { userId: session.user.id }, include: { category: true } }),
+  const [accounts, goals, budgets] = await Promise.all([
+    fetchBackend("/api/accounts"),
+    fetchBackend("/api/goals"),
+    fetchBackend("/api/budgets"),
   ])
 
+  // To avoid adding completely new complex APIs if not necessary, we can just fetch transactions for the last 6 months
+  // and process them here. Or fetch this month, last month, and recent via specific API calls.
+  // For simplicity since we replaced Prisma, let's fetch transactions up to 6 months ago.
+
+  const sixMonthsAgo = startOfMonth(subMonths(now, 5))
+  const txData = await fetchBackend(`/api/transactions?startDate=${sixMonthsAgo.toISOString()}&endDate=${monthEnd.toISOString()}&limit=1000`)
+  const allTx = txData.transactions || []
+
+  const thisMonthTx = allTx.filter((t: any) => new Date(t.date) >= monthStart && new Date(t.date) <= monthEnd)
+  const lastMonthTx = allTx.filter((t: any) => new Date(t.date) >= lastMonthStart && new Date(t.date) <= lastMonthEnd)
+
+  // Sort for recent tx
+  const recentTx = [...allTx].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10)
+
+  // Actually we need `budgetsWithCategory` but our API only returned budgets.
+  // We can fetch categories and map them.
+  const categories = await fetchBackend("/api/categories")
+  const budgetsWithCategory = budgets.map((b: any) => ({
+    ...b,
+    category: categories.find((c: any) => c.id === b.categoryId) || { name: "Unknown" }
+  }))
+
   // Calculate metrics
-  const thisMonthIncome = thisMonthTx.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0)
-  const thisMonthSpending = thisMonthTx.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
-  const lastMonthSpending = lastMonthTx.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
+  const thisMonthIncome = thisMonthTx.filter((t: any) => t.amount > 0).reduce((s: number, t: any) => s + t.amount, 0)
+  const thisMonthSpending = thisMonthTx.filter((t: any) => t.amount < 0).reduce((s: number, t: any) => s + Math.abs(t.amount), 0)
+  const lastMonthSpending = lastMonthTx.filter((t: any) => t.amount < 0).reduce((s: number, t: any) => s + Math.abs(t.amount), 0)
   const savingsRate = thisMonthIncome > 0 ? ((thisMonthIncome - thisMonthSpending) / thisMonthIncome) * 100 : 0
-  const netWorth = accounts.reduce((s, a) => s + a.balance, 0)
+  const netWorth = accounts.reduce((s: number, a: any) => s + a.balance, 0)
   const spendingChange = lastMonthSpending > 0 ? ((thisMonthSpending - lastMonthSpending) / lastMonthSpending) * 100 : 0
 
   // Spending by category
   const spendingByCategory: Record<string, number> = {}
-  for (const tx of thisMonthTx.filter(t => t.amount < 0)) {
+  for (const tx of thisMonthTx.filter((t: any) => t.amount < 0)) {
     const cat = tx.categoryId || "Uncategorized"
     spendingByCategory[cat] = (spendingByCategory[cat] || 0) + Math.abs(tx.amount)
   }
@@ -49,11 +67,7 @@ export default async function DashboardPage() {
     })
   }
 
-  // Fetch 6 months transactions for chart
-  const sixMonthsAgo = startOfMonth(subMonths(now, 5))
-  const sixMonthTx = await prisma.transaction.findMany({
-    where: { userId: session.user.id, date: { gte: sixMonthsAgo, lte: monthEnd } },
-  })
+  const sixMonthTx = allTx
 
   for (const tx of sixMonthTx) {
     const txMonth = new Date(tx.date).toLocaleString("default", { month: "short" })
@@ -72,10 +86,10 @@ export default async function DashboardPage() {
   }))
 
   // Budget progress - compute spent per budget category this month
-  const budgetProgress = budgetsWithCategory.map(b => {
+  const budgetProgress = budgetsWithCategory.map((b: any) => {
     const spent = thisMonthTx
-      .filter(t => t.amount < 0 && t.categoryId === b.categoryId)
-      .reduce((s, t) => s + Math.abs(t.amount), 0)
+      .filter((t: any) => t.amount < 0 && t.categoryId === b.categoryId)
+      .reduce((s: number, t: any) => s + Math.abs(t.amount), 0)
     return {
       id: b.id,
       categoryName: b.category.name,
@@ -94,31 +108,35 @@ export default async function DashboardPage() {
         netWorth,
         spendingChange,
       }}
-      accounts={accounts.map(a => ({
+      accounts={accounts.map((a: any) => ({
         ...a,
         balance: a.balance,
-        createdAt: a.createdAt.toISOString(),
-        updatedAt: a.updatedAt.toISOString(),
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt,
       }))}
-      recentTransactions={recentTx.map(t => ({
-        id: t.id,
-        description: t.description,
-        amount: t.amount,
-        date: t.date.toISOString(),
-        type: t.account.type,
-        accountName: t.account.name,
-        categoryName: t.category?.name || null,
-        categoryColor: t.category?.color || null,
-      }))}
+      recentTransactions={recentTx.map((t: any) => {
+        const tAccount = accounts.find((a: any) => a.id === t.accountId) || { type: 'OTHER', name: 'Unknown' }
+        const tCategory = categories.find((c: any) => c.id === t.categoryId)
+        return {
+          id: t.id,
+          description: t.description,
+          amount: t.amount,
+          date: t.date,
+          type: tAccount.type,
+          accountName: tAccount.name,
+          categoryName: tCategory?.name || null,
+          categoryColor: tCategory?.color || null,
+        }
+      })}
       monthlyData={monthlyDataDollars}
       budgetProgress={budgetProgress}
-      goals={goals.map(g => ({
+      goals={goals.map((g: any) => ({
         id: g.id,
         name: g.name,
         targetAmount: g.targetAmount,
         currentAmount: g.currentAmount,
         type: g.type,
-        deadline: g.deadline?.toISOString() || null,
+        deadline: g.deadline || null,
       }))}
     />
   )
