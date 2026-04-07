@@ -36,7 +36,9 @@ async def get_current_user(request: Request, session: Session = Depends(get_sess
     try:
         # We need to decrypt the JWE token
         key_bytes = get_encryption_key(AUTH_SECRET)
-        key = jwk.JWK(kty="oct", k=key_bytes)
+        import base64
+        k_b64url = base64.urlsafe_b64encode(key_bytes).rstrip(b'=').decode('ascii')
+        key = jwk.JWK(kty="oct", k=k_b64url)
 
         jwe_token = jwe.JWE()
         jwe_token.deserialize(token)
@@ -53,6 +55,8 @@ async def get_current_user(request: Request, session: Session = Depends(get_sess
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
         return user
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Auth error: {e}")
         raise HTTPException(

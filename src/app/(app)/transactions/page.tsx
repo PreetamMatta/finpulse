@@ -21,9 +21,15 @@ export default async function TransactionsPage({
     fetchBackend("/api/categories")
   ]);
 
+  const mappedTransactions = txRes.transactions.map((t: any) => ({
+    ...t,
+    account: accounts.find((a: any) => a.id === t.accountId) || { id: t.accountId, name: "Unknown Account" },
+    category: categories.find((c: any) => c.id === t.categoryId) || null
+  }));
+
   return (
     <TransactionsClient
-      transactions={txRes.transactions}
+      transactions={mappedTransactions}
       accounts={accounts}
       categories={categories}
       currentPage={page}

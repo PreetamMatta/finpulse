@@ -13,18 +13,18 @@ export default async function DashboardPage() {
   const lastMonthStart = startOfMonth(subMonths(now, 1))
   const lastMonthEnd = endOfMonth(subMonths(now, 1))
 
-  const [accounts, goals, budgets] = await Promise.all([
+  const sixMonthsAgo = startOfMonth(subMonths(now, 5))
+
+  // Fetch in parallel
+  // No limit is passed, though backend defaults to 20. We will set limit=10000 to fetch all for dashboard.
+  const [accounts, goals, budgets, categories, txData] = await Promise.all([
     fetchBackend("/api/accounts"),
     fetchBackend("/api/goals"),
     fetchBackend("/api/budgets"),
+    fetchBackend("/api/categories"),
+    fetchBackend(`/api/transactions?startDate=${sixMonthsAgo.toISOString()}&endDate=${monthEnd.toISOString()}&limit=10000`),
   ])
 
-  // To avoid adding completely new complex APIs if not necessary, we can just fetch transactions for the last 6 months
-  // and process them here. Or fetch this month, last month, and recent via specific API calls.
-  // For simplicity since we replaced Prisma, let's fetch transactions up to 6 months ago.
-
-  const sixMonthsAgo = startOfMonth(subMonths(now, 5))
-  const txData = await fetchBackend(`/api/transactions?startDate=${sixMonthsAgo.toISOString()}&endDate=${monthEnd.toISOString()}&limit=1000`)
   const allTx = txData.transactions || []
 
   const thisMonthTx = allTx.filter((t: any) => new Date(t.date) >= monthStart && new Date(t.date) <= monthEnd)
@@ -33,9 +33,6 @@ export default async function DashboardPage() {
   // Sort for recent tx
   const recentTx = [...allTx].sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10)
 
-  // Actually we need `budgetsWithCategory` but our API only returned budgets.
-  // We can fetch categories and map them.
-  const categories = await fetchBackend("/api/categories")
   const budgetsWithCategory = budgets.map((b: any) => ({
     ...b,
     category: categories.find((c: any) => c.id === b.categoryId) || { name: "Unknown" }

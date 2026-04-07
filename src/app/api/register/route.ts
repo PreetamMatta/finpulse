@@ -1,28 +1,25 @@
 import { NextResponse } from "next/server"
+import { z } from "zod"
+
+const registerSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().optional(),
+})
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-
-    // In our new architecture, registration could happen directly against FastAPI,
-    // or proxied here. Let's proxy to the FastAPI backend.
-
-    // Note: Since register doesn't require admin role for self-registration,
-    // we should create a public register endpoint in FastAPI.
-    // For now, let's just make the request to our admin create user endpoint
-    // and assume the backend handles public registration or we just hit it.
-
-    // Actually, in the main.py we only added /api/admin/users which requires admin.
-    // Let's call a new public endpoint /api/register on the backend.
+    const validated = registerSchema.parse(body)
 
     const baseUrl = process.env.BACKEND_URL || "http://localhost:8000"
     const res = await fetch(`${baseUrl}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        email: body.email,
-        password: body.password,
-        name: body.name,
+        email: validated.email,
+        password: validated.password,
+        name: validated.name,
       }),
     })
 
@@ -33,6 +30,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true }, { status: 201 })
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.issues },
+        { status: 400 }
+      )
+    }
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

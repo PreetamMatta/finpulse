@@ -71,11 +71,43 @@ class AccountCreate(BaseModel):
 
 @app.post("/api/accounts")
 def create_account(account: AccountCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    new_account = Account(**account.dict(), userId=current_user.id)
+    new_account = Account(**account.model_dump(), userId=current_user.id)
     session.add(new_account)
     session.commit()
     session.refresh(new_account)
     return new_account
+
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    balance: Optional[int] = None
+    color: Optional[str] = None
+    isActive: Optional[bool] = None
+
+@app.put("/api/accounts/{account_id}")
+def update_account(account_id: str, account_update: AccountUpdate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    account = session.get(Account, account_id)
+    if not account or account.userId != current_user.id:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    update_data = account_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(account, key, value)
+
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+@app.delete("/api/accounts/{account_id}")
+def delete_account(account_id: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    account = session.get(Account, account_id)
+    if not account or account.userId != current_user.id:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    session.delete(account)
+    session.commit()
+    return {"status": "ok"}
 
 # ----------------- TRANSACTIONS -----------------
 @app.get("/api/transactions")
@@ -108,10 +140,13 @@ def get_transactions(
             Transaction.merchant.contains(search)
         ))
 
+    ALLOWED_SORT_FIELDS = ["date", "amount", "description", "createdAt"]
+    sort_field = sortBy if sortBy in ALLOWED_SORT_FIELDS else "date"
+
     if sortOrder == "asc":
-        query = query.order_by(getattr(Transaction, sortBy).asc())
+        query = query.order_by(getattr(Transaction, sort_field).asc())
     else:
-        query = query.order_by(getattr(Transaction, sortBy).desc())
+        query = query.order_by(getattr(Transaction, sort_field).desc())
 
     total = session.exec(select(func.count()).select_from(query.subquery())).one()
 
@@ -141,11 +176,51 @@ def create_transaction(transaction: TransactionCreate, session: Session = Depend
     if not account or account.userId != current_user.id:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    new_transaction = Transaction(**transaction.dict(), userId=current_user.id)
+    new_transaction = Transaction(**transaction.model_dump(), userId=current_user.id)
     session.add(new_transaction)
     session.commit()
     session.refresh(new_transaction)
     return new_transaction
+
+class TransactionUpdate(BaseModel):
+    accountId: Optional[str] = None
+    date: Optional[datetime] = None
+    amount: Optional[int] = None
+    description: Optional[str] = None
+    categoryId: Optional[str] = None
+    subcategory: Optional[str] = None
+    merchant: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.put("/api/transactions/{transaction_id}")
+def update_transaction(transaction_id: str, transaction_update: TransactionUpdate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    transaction = session.get(Transaction, transaction_id)
+    if not transaction or transaction.userId != current_user.id:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    if transaction_update.accountId:
+        account = session.get(Account, transaction_update.accountId)
+        if not account or account.userId != current_user.id:
+            raise HTTPException(status_code=404, detail="Account not found")
+
+    update_data = transaction_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(transaction, key, value)
+
+    session.add(transaction)
+    session.commit()
+    session.refresh(transaction)
+    return transaction
+
+@app.delete("/api/transactions/{transaction_id}")
+def delete_transaction(transaction_id: str, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    transaction = session.get(Transaction, transaction_id)
+    if not transaction or transaction.userId != current_user.id:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    session.delete(transaction)
+    session.commit()
+    return {"status": "ok"}
 
 # ----------------- CATEGORIES -----------------
 @app.get("/api/categories")
@@ -155,6 +230,21 @@ def get_categories(session: Session = Depends(get_session), current_user: User =
             or_(Category.userId == current_user.id, Category.userId == None)
         )
     ).all()
+
+class CategoryCreate(BaseModel):
+    name: str
+    type: str
+    icon: Optional[str] = None
+    parentId: Optional[str] = None
+    color: str = "#6366f1"
+
+@app.post("/api/categories")
+def create_category(category: CategoryCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    new_category = Category(**category.model_dump(), userId=current_user.id)
+    session.add(new_category)
+    session.commit()
+    session.refresh(new_category)
+    return new_category
 
 # ----------------- BUDGETS AND GOALS -----------------
 @app.get("/api/budgets")

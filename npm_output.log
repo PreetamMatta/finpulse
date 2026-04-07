@@ -1,3 +1,0 @@
-docker compose exec app npm run dev -- -H 0.0.0.0
-service "app" is not running
-make: *** [Makefile:76: dev] Error 1
