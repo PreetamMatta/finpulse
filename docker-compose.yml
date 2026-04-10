@@ -11,6 +11,7 @@ services:
       - "3000:3000"
     environment:
       - BACKEND_URL=http://backend:8000
+      - INTERNAL_API_KEY=finpulse-dev-internal-api-key-change-in-production
       - AUTH_SECRET=finpulse-dev-secret-change-in-production
       - AUTH_URL=http://localhost:3000
       - NODE_ENV=development
@@ -29,10 +30,9 @@ services:
     volumes:
       - ./backend:/app:cached
       - finpulse-db:/data
-    ports:
-      - "8000:8000"
     environment:
       - DATABASE_URL=sqlite:////data/finpulse.db
+      - INTERNAL_API_KEY=finpulse-dev-internal-api-key-change-in-production
       - AUTH_SECRET=finpulse-dev-secret-change-in-production
 
 volumes:

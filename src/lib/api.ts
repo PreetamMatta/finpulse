@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth"
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"
-const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || "finpulse-internal-key"
+// Error intentional if missing
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY as string
 
 export async function fetchBackend(endpoint: string, options: RequestInit = {}) {
   const session = await auth()

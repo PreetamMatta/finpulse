@@ -4,7 +4,7 @@ from sqlmodel import Session
 from models import User
 from database import get_session
 
-INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "finpulse-internal-key")
+INTERNAL_API_KEY = os.environ["INTERNAL_API_KEY"]  # KeyError on missing = intentional
 
 
 def _verify_api_key(request: Request) -> None:
@@ -36,9 +36,8 @@ async def get_current_user(request: Request, session: Session = Depends(get_sess
     return user
 
 
-async def get_admin_user(request: Request, current_user: User = Depends(get_current_user)) -> User:
-    role = request.headers.get("X-User-Role", "USER")
-    if role != "ADMIN" and current_user.role != "ADMIN":
+async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions",
