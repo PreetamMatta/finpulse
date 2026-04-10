@@ -4,7 +4,7 @@ import { fetchBackend } from "@/lib/api"
 
 const createAccountSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.string().min(1, "Type is required"),
+  type: z.enum(["CHECKING", "SAVINGS", "CREDIT_CARD", "INVESTMENT", "LOAN", "OTHER"]),
   balance: z.number().default(0),
   color: z.string().optional(),
 })

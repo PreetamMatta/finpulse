@@ -1,23 +1,31 @@
-import { cookies } from "next/headers"
+import { auth } from "@/lib/auth"
+
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000"
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || "finpulse-internal-key"
 
 export async function fetchBackend(endpoint: string, options: RequestInit = {}) {
-  const cookieStore = await cookies()
-  const authCookie = cookieStore.get("authjs.session-token") || cookieStore.get("next-auth.session-token")
+  const session = await auth()
 
   const headers = new Headers(options.headers)
-  if (authCookie) {
-    headers.set("Cookie", `${authCookie.name}=${authCookie.value}`)
+  headers.set("X-API-Key", INTERNAL_API_KEY)
+
+  if (session?.user?.id) {
+    headers.set("X-User-Id", session.user.id)
+    headers.set("X-User-Role", session.user.role ?? "USER")
   }
 
-  const baseUrl = process.env.BACKEND_URL || "http://localhost:8000"
+  if (options.body) {
+    headers.set("Content-Type", "application/json")
+  }
 
-  const response = await fetch(`${baseUrl}${endpoint}`, {
+  const response = await fetch(`${BACKEND_URL}${endpoint}`, {
     ...options,
     headers,
   })
 
   if (!response.ok) {
-    throw new Error(`Backend error: ${response.status}`)
+    const error = await response.json().catch(() => ({ detail: "Unknown error" }))
+    throw new Error(`Backend ${response.status}: ${error.detail ?? JSON.stringify(error)}`)
   }
 
   return response.json()

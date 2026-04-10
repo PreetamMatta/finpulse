@@ -17,22 +17,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null
 
         try {
-          // We don't have prisma anymore. Call the backend to verify password
-          // However, we just need a simple backend endpoint to verify credentials.
-          const res = await fetch(`${process.env.BACKEND_URL || 'http://localhost:8000'}/api/auth/verify`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+          const backendUrl = process.env.BACKEND_URL || "http://localhost:8000"
+          const apiKey = process.env.INTERNAL_API_KEY || "finpulse-internal-key"
+          const res = await fetch(`${backendUrl}/api/auth/verify`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-API-Key": apiKey,
+            },
             body: JSON.stringify({
               email: credentials.email,
-              password: credentials.password
-            })
+              password: credentials.password,
+            }),
           })
 
           if (!res.ok) return null
 
           const user = await res.json()
           return { id: user.id, email: user.email, name: user.name, role: user.role }
-        } catch (e) {
+        } catch {
           return null
         }
       },
@@ -41,17 +44,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
-        // @ts-ignore
-        token.role = user.role
+        token.id = user.id!
+        token.role = (user as { role?: string }).role ?? "USER"
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string
-        // @ts-ignore
-        session.user.role = token.role as string
+        session.user.id = token.id
+        session.user.role = token.role
       }
       return session
     },

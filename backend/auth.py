@@ -1,73 +1,51 @@
 import os
-from typing import Optional
 from fastapi import Depends, HTTPException, status, Request
-from jwcrypto import jwk, jwe, jwt
-import json
 from sqlmodel import Session
 from models import User
 from database import get_session
-import hashlib
 
-AUTH_SECRET = os.getenv("AUTH_SECRET", "finpulse-dev-secret-change-in-production")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "finpulse-internal-key")
 
-def get_encryption_key(secret: str) -> bytes:
-    # Auth.js uses HKDF to derive the encryption key from the secret.
-    # The info string is typically "Auth.js Generated Encryption Key"
-    import hkdf
-    key = hkdf.hkdf_expand(hkdf.hkdf_extract(None, secret.encode()), b"Auth.js Generated Encryption Key (jwt)", 32)
-    return key
+
+def _verify_api_key(request: Request) -> None:
+    key = request.headers.get("X-API-Key")
+    if key != INTERNAL_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
 
 async def get_current_user(request: Request, session: Session = Depends(get_session)) -> User:
-    token = request.cookies.get("authjs.session-token")
-    if not token:
-        token = request.cookies.get("next-auth.session-token")
+    _verify_api_key(request)
 
-    if not token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-
-    if not token:
+    user_id = request.headers.get("X-User-Id")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
 
-    try:
-        # We need to decrypt the JWE token
-        key_bytes = get_encryption_key(AUTH_SECRET)
-        import base64
-        k_b64url = base64.urlsafe_b64encode(key_bytes).rstrip(b'=').decode('ascii')
-        key = jwk.JWK(kty="oct", k=k_b64url)
-
-        jwe_token = jwe.JWE()
-        jwe_token.deserialize(token)
-        jwe_token.decrypt(key)
-
-        payload = json.loads(jwe_token.payload)
-        user_id = payload.get("sub") or payload.get("id")
-
-        if not user_id:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-
-        user = session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Auth error: {e}")
+    user = session.get(User, user_id)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="User not found",
         )
 
-async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
-    if current_user.role != "ADMIN":
+    return user
+
+
+async def get_admin_user(request: Request, current_user: User = Depends(get_current_user)) -> User:
+    role = request.headers.get("X-User-Role", "USER")
+    if role != "ADMIN" and current_user.role != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions",
         )
     return current_user
+
+
+def verify_api_key_only(request: Request) -> None:
+    """For public endpoints (register, auth/verify) that only need the API key."""
+    _verify_api_key(request)

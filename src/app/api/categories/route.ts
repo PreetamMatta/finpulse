@@ -4,7 +4,7 @@ import { fetchBackend } from "@/lib/api"
 
 const createCategorySchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.string().min(1, "Type is required"),
+  type: z.enum(["INCOME", "EXPENSE"]),
   icon: z.string().optional().nullable(),
   parentId: z.string().optional().nullable(),
   color: z.string().default("#6366f1"),
