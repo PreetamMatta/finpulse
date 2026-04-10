@@ -8,6 +8,8 @@ from models import SQLModel, User, Account, Transaction, Category, Budget, Goal
 from auth import get_current_user, get_admin_user, verify_api_key_only
 from pydantic import BaseModel
 import bcrypt
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Query
 
 
 @asynccontextmanager
@@ -18,6 +20,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FinPulse API", lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[],  # internal only, cross-origin restricted
+    allow_credentials=False,
+)
 
 @app.get("/health")
 def health_check():
@@ -228,8 +235,8 @@ class TransactionUpdate(BaseModel):
 
 @app.get("/api/transactions")
 def get_transactions(
-    page: int = 1,
-    limit: int = 20,
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=10000), # Cap at 10000 for dashboard
     accountId: Optional[str] = None,
     categoryId: Optional[str] = None,
     startDate: Optional[datetime] = None,

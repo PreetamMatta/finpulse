@@ -5,9 +5,21 @@ import { fetchBackend } from "@/lib/api"
 const createAccountSchema = z.object({
   name: z.string().min(1, "Name is required"),
   type: z.enum(["CHECKING", "SAVINGS", "CREDIT_CARD", "INVESTMENT", "LOAN", "OTHER"]),
-  balance: z.number().default(0),
-  color: z.string().optional(),
+  balance: z.number().int().default(0),
+  institution: z.string().optional(),
+  interestRate: z.number().optional(),
+  creditLimit: z.number().int().optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 })
+
+export async function GET(request: Request) {
+  try {
+    const accounts = await fetchBackend("/api/accounts")
+    return NextResponse.json(accounts)
+  } catch (error) {
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
 
 export async function POST(request: Request) {
   try {
