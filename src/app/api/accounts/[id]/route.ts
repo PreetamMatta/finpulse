@@ -1,83 +1,28 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { fetchBackend } from "@/lib/api"
 
 const updateAccountSchema = z.object({
-  name: z.string().min(1).optional(),
-  type: z
-    .enum([
-      "CHECKING",
-      "SAVINGS",
-      "CREDIT_CARD",
-      "INVESTMENT",
-      "LOAN",
-      "CASH",
-      "OTHER",
-    ])
-    .optional(),
-  institution: z.string().optional(),
+  name: z.string().optional(),
+  type: z.string().optional(),
   balance: z.number().optional(),
-  interestRate: z.number().optional(),
-  creditLimit: z.number().optional(),
   color: z.string().optional(),
+  isActive: z.boolean().optional(),
 })
-
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    const account = await prisma.account.findUnique({
-      where: { id },
-    })
-
-    if (!account || account.userId !== session.user.id) {
-      return NextResponse.json({ error: "Account not found" }, { status: 404 })
-    }
-
-    return NextResponse.json(account)
-  } catch {
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
-  }
-}
 
 export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    const existing = await prisma.account.findUnique({
-      where: { id },
-    })
-
-    if (!existing || existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Account not found" }, { status: 404 })
-    }
-
+    const p = await params
     const body = await request.json()
     const validated = updateAccountSchema.parse(body)
 
-    const account = await prisma.account.update({
-      where: { id },
-      data: validated,
+    const account = await fetchBackend(`/api/accounts/${p.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validated),
     })
 
     return NextResponse.json(account)
@@ -96,31 +41,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    const existing = await prisma.account.findUnique({
-      where: { id },
-    })
-
-    if (!existing || existing.userId !== session.user.id) {
-      return NextResponse.json({ error: "Account not found" }, { status: 404 })
-    }
-
-    await prisma.account.delete({
-      where: { id },
-    })
-
-    return NextResponse.json({ message: "Account deleted" })
-  } catch {
+    const p = await params
+    await fetchBackend(`/api/accounts/${p.id}`, { method: "DELETE" })
+    return NextResponse.json({ success: true })
+  } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

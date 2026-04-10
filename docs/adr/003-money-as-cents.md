@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-JavaScript has floating-point precision issues: `0.1 + 0.2 = 0.30000000000000004`. Financial applications require exact arithmetic.
+Standard floating-point numbers in both JavaScript and Python (IEEE 754) suffer from precision issues (e.g., `0.1 + 0.2 = 0.30000000000000004`). Additionally, SQLite does not have a true, exact-precision `DECIMAL` data type; it stores decimals as floats (`REAL`). Therefore, storing financial values as integer cents is practically necessary to guarantee no precision loss or rounding errors. Financial applications require exact arithmetic.
 
 ## Decision
 Store all monetary values as integers representing cents.

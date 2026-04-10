@@ -1,20 +1,16 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { fetchBackend } from "@/lib/api"
 
 const updateTransactionSchema = z.object({
   accountId: z.string().optional(),
-  date: z
-    .string()
-    .transform((val) => new Date(val))
-    .optional(),
+  date: z.string().transform((val) => new Date(val).toISOString()).optional(),
   amount: z.number().optional(),
   description: z.string().optional(),
-  categoryId: z.string().nullable().optional(),
-  subcategory: z.string().nullable().optional(),
-  merchant: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
+  categoryId: z.string().optional().nullable(),
+  subcategory: z.string().optional().nullable(),
+  merchant: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 })
 
 export async function PUT(
@@ -22,50 +18,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    const existing = await prisma.transaction.findUnique({
-      where: { id },
-      include: { account: { select: { userId: true } } },
-    })
-
-    if (!existing || existing.account.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
-      )
-    }
-
+    const p = await params
     const body = await request.json()
     const validated = updateTransactionSchema.parse(body)
 
-    // If changing account, verify the new account belongs to the user
-    if (validated.accountId) {
-      const account = await prisma.account.findUnique({
-        where: { id: validated.accountId },
-      })
-      if (!account || account.userId !== session.user.id) {
-        return NextResponse.json(
-          { error: "Account not found" },
-          { status: 404 }
-        )
-      }
-    }
-
-    const transaction = await prisma.transaction.update({
-      where: { id },
-      data: validated,
-      include: {
-        account: { select: { id: true, name: true } },
-        category: {
-          select: { id: true, name: true, icon: true, color: true },
-        },
-      },
+    const transaction = await fetchBackend(`/api/transactions/${p.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(validated),
     })
 
     return NextResponse.json(transaction)
@@ -84,35 +44,14 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    const { id } = await params
-
-    const existing = await prisma.transaction.findUnique({
-      where: { id },
-      include: { account: { select: { userId: true } } },
-    })
-
-    if (!existing || existing.account.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "Transaction not found" },
-        { status: 404 }
-      )
-    }
-
-    await prisma.transaction.delete({
-      where: { id },
-    })
-
-    return NextResponse.json({ message: "Transaction deleted" })
-  } catch {
+    const p = await params
+    await fetchBackend(`/api/transactions/${p.id}`, { method: "DELETE" })
+    return NextResponse.json({ success: true })
+  } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
